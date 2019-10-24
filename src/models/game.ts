@@ -1,10 +1,16 @@
 import { EntityStore } from "kaaya"
 import nanoid = require("nanoid/non-secure")
 import { ICardData, cardDataDefault, Card } from "./card"
-import { Player } from "./player"
+import { Player, PlayerStatus } from "./player"
 
+export enum GameStatus {
+	Init = 0,
+	Playing = 1,
+	Finished = 2
+}
 export interface IGameData {
 	id: string
+	status: GameStatus
 	playerIds: string[]
 	turn: {
 		round: number
@@ -42,6 +48,7 @@ export class Game {
 
 	dataDefault: IGameData = {
 		id: nanoid(),
+		status: 0,
 		playerIds: [],
 		turn: {
 			round: 1,
@@ -58,21 +65,48 @@ export class Game {
 		for (var player of this.players) {
 			player.init()
 		}
-		this.players[0].playing = true
+		this.players[0].status = 1
 		this.players[0].reset()
+		this.watchedData.status = GameStatus.Playing
+	}
+
+	public finish() {
+		this.watchedData.status = GameStatus.Finished
 	}
 
 	public nextTurn() {
+		if (this.watchedData.status === GameStatus.Finished) return
+		if (this.players[0].hp <= 0) {
+			this.players[0].status = PlayerStatus.losing
+			this.players[1].status = PlayerStatus.winning
+			this.finish()
+			return
+		}
+		if (this.players[1].hp <= 0) {
+			this.players[1].status = PlayerStatus.losing
+			this.players[0].status = PlayerStatus.winning
+			this.finish()
+			return
+		}
+		if (this.data.turn.round >= 20) {
+			this.players[0].status = PlayerStatus.losing
+			this.players[1].status = PlayerStatus.losing
+			this.finish()
+			return
+		}
 		if (this.watchedData.turn.player === 0) {
 			this.watchedData.turn.player = 1
 		} else {
 			this.watchedData.turn.player = 0
 			this.watchedData.turn.round += 1
 		}
-		this.players[0].playing = this.watchedData.turn.player === 0
-		this.players[1].playing = this.watchedData.turn.player === 1
+		this.players[0].status = this.watchedData.turn.player === 0 ? 1 : 0
+		this.players[1].status = this.watchedData.turn.player === 1 ? 1 : 0
 		this.players[this.watchedData.turn.player].reset()
 		this.players[this.watchedData.turn.player].draw()
+		if (this.data.turn.round >= 6) {
+			this.players[this.watchedData.turn.player].draw()
+		}
 	}
 
 	public getCardEntity(id: string): Card {
@@ -86,5 +120,10 @@ export class Game {
 			card.id = id
 		}
 		return card
+	}
+
+	public getJSON() {
+		const data = JSON.parse(JSON.stringify(this.data))
+		return data
 	}
 }

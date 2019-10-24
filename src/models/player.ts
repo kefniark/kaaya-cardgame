@@ -1,15 +1,22 @@
 import { EntityStore } from "kaaya"
 import nanoid = require("nanoid/non-secure")
 import { Game } from "./game"
-import { Card } from "./card"
+
+export enum PlayerStatus {
+	waiting = 0,
+	playing = 1,
+	winning = 2,
+	losing = 3
+}
 
 export interface IPlayerData {
 	id: string
 	gameId: string
 	name: string
 	hp: number
+	xp: number
 	mana: number
-	playing: boolean
+	status: PlayerStatus
 	deckCardIds: string[]
 	handCardIds: string[]
 	boardCardIds: string[]
@@ -31,7 +38,10 @@ export class Player {
 	}
 
 	get deck() {
-		return this.deckIds.map(x => this.game.getCard(x))
+		return this.deckIds.map(x => this.game.getCardEntity(x).getJSON())
+	}
+	get deckCards() {
+		return this.deckIds.map(x => this.game.getCardEntity(x))
 	}
 	get deckIds() {
 		return this.data.deckCardIds
@@ -41,7 +51,10 @@ export class Player {
 	}
 
 	get hand() {
-		return this.handIds.map(x => this.game.getCard(x))
+		return this.handIds.map(x => this.game.getCardEntity(x).getJSON())
+	}
+	get handCards() {
+		return this.handIds.map(x => this.game.getCardEntity(x))
 	}
 	get handIds() {
 		return this.data.handCardIds
@@ -51,7 +64,10 @@ export class Player {
 	}
 
 	get board() {
-		return this.boardIds.map(x => this.game.getCard(x))
+		return this.boardIds.map(x => this.game.getCardEntity(x).getJSON())
+	}
+	get boardCards() {
+		return this.boardIds.map(x => this.game.getCardEntity(x))
 	}
 	get boardIds() {
 		return this.data.boardCardIds
@@ -61,10 +77,22 @@ export class Player {
 	}
 
 	get playing(): boolean {
-		return this.data.playing
+		return this.data.status === PlayerStatus.playing
 	}
-	set playing(val: boolean) {
-		this.watchedData.playing = val
+
+	get winning(): boolean {
+		return this.data.status === PlayerStatus.winning
+	}
+
+	get losing(): boolean {
+		return this.data.status === PlayerStatus.losing
+	}
+
+	get status() {
+		return this.data.status
+	}
+	set status(val) {
+		this.watchedData.status = val
 	}
 
 	get mana(): number {
@@ -93,8 +121,9 @@ export class Player {
 		gameId: "",
 		name: "",
 		mana: 0,
-		hp: 10,
-		playing: false,
+		hp: 12,
+		xp: 0,
+		status: PlayerStatus.waiting,
 		deckCardIds: [],
 		handCardIds: [],
 		boardCardIds: [],
@@ -115,11 +144,14 @@ export class Player {
 
 	public reset() {
 		this.mana = this.game.turn.round
-		for (var cardId of this.boardIds) {
-			var card = this.store.getEntity<Card>(cardId)
+		for (var card of this.boardCards) {
 			card.reset()
 		}
 		this.watchedData.attackCardIds = []
+	}
+
+	public getXP(val: number) {
+		this.watchedData.xp += val
 	}
 
 	public draw(valid: boolean = true): string {
@@ -158,9 +190,9 @@ export class Player {
 		if (valid && this.game.turnPlayerId !== this.id) throw new Error("Not your turn")
 		var card = this.game.getCardEntity(cardId)
 		if (valid && card.player !== this.id) throw new Error(`Not your card ${card.player} / ${this.id}`)
-		if (card.engaged) throw new Error(`Already engaged`)
+		if (card.tap) throw new Error(`Already tapped`)
 
-		card.engaged = true
+		card.tap = true
 		this.watchedData.attackCardIds.push(card.id)
 	}
 
@@ -170,25 +202,52 @@ export class Player {
 			this.watchedData.boardCardIds.splice(pos, 1)
 			this.watchedData.graveyardCardIds.push(cardId)
 		}
+		this.getXP(1)
+	}
+
+	public skill() {
+		if (this.game.turnPlayerId !== this.id) throw new Error("Not your turn")
+		if (this.watchedData.xp < 10) return
+		this.getXP(-10)
+		for (var card of this.enemy.boardCards) {
+			card.addModifier("atk", 1 - card.modifiedAtk, "skill")
+			card.addModifier("def", 1 - card.modifiedDef, "skill")
+		}
 	}
 
 	public endTurn() {
 		if (this.data.attackCardIds.length > 0) {
-			const defendIds = this.enemy.board.filter(x => !x.engaged).map(x => x.id)
+			const defendIds = this.enemy.board.map(x => x.id)
+			this.store.transactionStart({
+				id: "attack",
+				attacker: this.id,
+				defender: this.enemy.id,
+				atk: this.data.attackCardIds,
+				def: defendIds
+			})
 			for (var i = 0; i < this.data.attackCardIds.length; i++) {
 				var cardAtk = this.game.getCardEntity(this.data.attackCardIds[i])
 				if (!defendIds[i]) {
-					this.enemy.hp -= cardAtk.atk
+					this.enemy.hp -= cardAtk.modifiedAtk
+					this.enemy.getXP(cardAtk.modifiedAtk)
+					if (cardAtk.level < 2) cardAtk.level += 1
 				} else {
 					var cardDef = this.game.getCardEntity(defendIds[i])
-					if (cardAtk.atk >= cardDef.def) {
-						this.enemy.killCard(cardDef.id)
-					}
-					if (cardDef.atk >= cardAtk.def) {
-						this.killCard(cardAtk.id)
+					cardDef.addModifier("def", -cardAtk.modifiedAtk, "damage")
+					cardAtk.addModifier("def", -cardDef.modifiedAtk, "damage")
+					if (cardDef.modifiedDef <= 0 && cardAtk.modifiedDef > 0) cardAtk.level += 1
+					if (cardAtk.modifiedDef <= 0 && cardDef.modifiedDef > 0) cardDef.level += 1
+				}
+			}
+
+			for (var player of [this, this.enemy]) {
+				for (var card of player.boardCards) {
+					if (card.modifiedDef <= 0) {
+						player.killCard(card.id)
 					}
 				}
 			}
+			this.store.transactionEnd()
 		}
 		this.game.nextTurn()
 	}
@@ -198,6 +257,9 @@ export class Player {
 		data.deck = JSON.parse(JSON.stringify(this.deck))
 		data.hand = JSON.parse(JSON.stringify(this.hand))
 		data.board = JSON.parse(JSON.stringify(this.board))
+		data.playing = this.playing
+		data.winning = this.winning
+		data.losing = this.losing
 		return data
 	}
 }

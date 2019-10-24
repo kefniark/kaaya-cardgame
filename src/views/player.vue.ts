@@ -18,48 +18,66 @@ export const PlayerComponent = Vue.extend({
 		endTurn() {
 			var player = this.servplayer() as Player
 			player.endTurn()
+		},
+		skill() {
+			var player = this.servplayer() as Player
+			player.skill()
 		}
 	},
 	template: `<div class="Player">
     <div style="float:right">
-        <h3>{{ player.name }} ({{ player.id }})</h3>
-
-        <label v-if="player.playing" class="label">Playing</label>
-        Mana: {{player.mana }}<br>
-        HP: {{player.hp }} / 10<br>
+        <b>Mana</b>: {{player.mana }}<br>
+        <b>HP</b>: {{player.hp }} / 12<br>
+        XP: {{player.xp }}<br>
         Deck: {{ player.deckCardIds.length }}<br>
-        Graveyard: {{ player.graveyardCardIds.length }}<br>
+        Graveyard: {{ player.graveyardCardIds.length }}
+        <br><br>
         <button v-if="player.playing" v-on:click="endTurn" class="button is-primary">End turn</button>
+        <button v-if="player.playing && player.xp >= 10" v-on:click="skill" class="button is-primary">Use skill</button>
     </div>
     
-    <h5>Hand: {{ player.handCardIds.length }}</h5>
+    <h3 class="title is-3">
+        <b>{{ player.name }}</b> ({{ player.id }})
+        <label v-if="player.playing" class="label">Playing</label>
+        <label v-if="player.winning" class="label">Win !!!</label>
+        <label v-if="player.losing" class="label">Lose !!!</label>
+    </h3>
+    <h4 class="title is-4">Hand: {{ player.handCardIds.length }}</h4>
     <div>
         <div v-for="(card, id) in getplayer().hand" v-bind:key="card.id" class="Card">
             <span class="CardLabel">
-                {{ card.id }}<br>
-                {{ card.name }}<br>
-                Atk: {{ card.atk }} Def: {{ card.def }}<br>
-                Cost: {{ card.cost }}<br>
+                <small>{{ card.id }}</small> | Cost:{{ card.cost }}<br>
+                {{ card.name }} (Lv.{{ card.level }})<br>
+                Atk: {{ card.modifiedAtk }}
+                <span v-if="card.atk !== card.modifiedAtk">({{card.modifiedAtk - card.atk}})</span>
+                <br>
+                Def: {{ card.modifiedDef }}
+                <span v-if="card.def !== card.modifiedDef">({{card.modifiedDef - card.def}})</span>
+                <br>
                 <button v-if="player.playing && player.mana >= card.cost" v-on:click="placeCard(card.id)" class="button is-info">Place</button>
             </span>
-            <img :src="getImg(card)" style="height: 200px"/>
+            <img :src="getImg(card)" style="height: 210px"/>
         </div>
     </div>
 
     <hr>
 
-    <h5>Board: {{ player.boardCardIds.length }}</h5>
+    <h4 class="title is-4">Board: {{ player.boardCardIds.length }}</h4>
     <div>
         <div v-for="(card, id) in getplayer().board" v-bind:key="card.id" class="Card">
             <span class="CardLabel">
-                {{ card.id }}<br>
-                {{ card.name }}<br>
-                Atk: {{ card.atk }} Def: {{ card.def }}<br>
-                Cost: {{ card.cost }}<br>
-                <label v-if="card.engaged" class="label">Engaged !</label>
-                <button v-if="player.playing && !card.engaged && card.atk > 0" v-on:click="attackCard(card.id)" class="button is-info">Attack</button>
+                <small>{{ card.id }}</small> | Cost:{{ card.cost }}<br>
+                {{ card.name }} (Lv.{{ card.level }})<br>
+                Atk: {{ card.modifiedAtk }}
+                <span v-if="card.atk !== card.modifiedAtk">({{card.atk}}{{(card.modifiedAtk - card.atk >= 0) ? '+' : '' }}{{card.modifiedAtk - card.atk}})</span>
+                <br>
+                Def: {{ card.modifiedDef }}
+                <span v-if="card.def !== card.modifiedDef">({{card.def}}{{(card.modifiedDef - card.def >= 0) ? '+' : '' }}{{card.modifiedDef - card.def}})</span>
+                <br>
+                <!-- <label v-if="card.tap" class="label">Tap !</label> -->
+                <button v-if="player.playing && !card.tap && card.modifiedAtk > 0" v-on:click="attackCard(card.id)" class="button is-info">Attack</button>
             </span>
-            <img :src="getImg(card)" style="height: 200px"/>
+            <img :src="getImg(card)" style="height: 210px"/>
         </div>
     </div>
 
