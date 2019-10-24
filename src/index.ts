@@ -136,7 +136,8 @@ new Vue({
 		</div>
 
 		<div>
-			<h1 class="title">Game ({{ game.id }}) - Turn: {{ game.turn.round }}</h1>
+			<h1 class="title" style="text-align: center; margin-left: -120px">Game ({{ game.id }}) - Turn: {{ game.turn.round }}</h1>
+			<progress class="progress is-danger" :value="100 * player1.hp / (player1.hp + player2.hp)" max="100" style="width: 91%;margin: 0 20px;"></progress>
 		</div>
 
 		<PlayerComponent :player="player1" :getplayer="proxyPlayer1" :servplayer="servPlayer1" style="background-color: #f6edcf"></PlayerComponent>

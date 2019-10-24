@@ -121,7 +121,7 @@ export class Player {
 		gameId: "",
 		name: "",
 		mana: 0,
-		hp: 12,
+		hp: 16,
 		xp: 0,
 		status: PlayerStatus.waiting,
 		deckCardIds: [],
@@ -143,7 +143,11 @@ export class Player {
 	}
 
 	public reset() {
-		this.mana = this.game.turn.round
+		if (this.game.turn.round === 1 && this.game.turn.player === 0) {
+			this.mana = this.game.turn.round
+		} else {
+			this.mana = this.game.turn.round + 1
+		}
 		for (var card of this.boardCards) {
 			card.reset()
 		}
@@ -209,9 +213,15 @@ export class Player {
 		if (this.game.turnPlayerId !== this.id) throw new Error("Not your turn")
 		if (this.watchedData.xp < 10) return
 		this.getXP(-10)
-		for (var card of this.enemy.boardCards) {
-			card.addModifier("atk", 1 - card.modifiedAtk, "skill")
-			card.addModifier("def", 1 - card.modifiedDef, "skill")
+		if (this.hp < 6) {
+			for (var card of this.enemy.boardCards) {
+				this.enemy.killCard(card.id)
+			}
+		} else {
+			for (var card of this.enemy.boardCards) {
+				card.addModifier("atk", 1 - card.modifiedAtk, "skill")
+				card.addModifier("def", 1 - card.modifiedDef, "skill")
+			}
 		}
 	}
 

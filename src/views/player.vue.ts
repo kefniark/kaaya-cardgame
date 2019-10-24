@@ -27,7 +27,7 @@ export const PlayerComponent = Vue.extend({
 	template: `<div class="Player">
     <div style="float:right">
         <b>Mana</b>: {{player.mana }}<br>
-        <b>HP</b>: {{player.hp }} / 12<br>
+        <b>HP</b>: {{player.hp }} / 16<br>
         XP: {{player.xp }}<br>
         Deck: {{ player.deckCardIds.length }}<br>
         Graveyard: {{ player.graveyardCardIds.length }}
@@ -46,7 +46,6 @@ export const PlayerComponent = Vue.extend({
     <div>
         <div v-for="(card, id) in getplayer().hand" v-bind:key="card.id" class="Card">
             <span class="CardLabel">
-                <small>{{ card.id }}</small> | Cost:{{ card.cost }}<br>
                 {{ card.name }} (Lv.{{ card.level }})<br>
                 Atk: {{ card.modifiedAtk }}
                 <span v-if="card.atk !== card.modifiedAtk">({{card.modifiedAtk - card.atk}})</span>
@@ -54,6 +53,7 @@ export const PlayerComponent = Vue.extend({
                 Def: {{ card.modifiedDef }}
                 <span v-if="card.def !== card.modifiedDef">({{card.modifiedDef - card.def}})</span>
                 <br>
+                <small>{{ card.id }}</small> | Cost:{{ card.cost }}<br>
                 <button v-if="player.playing && player.mana >= card.cost" v-on:click="placeCard(card.id)" class="button is-info">Place</button>
             </span>
             <img :src="getImg(card)" style="height: 210px"/>
@@ -66,7 +66,6 @@ export const PlayerComponent = Vue.extend({
     <div>
         <div v-for="(card, id) in getplayer().board" v-bind:key="card.id" class="Card">
             <span class="CardLabel">
-                <small>{{ card.id }}</small> | Cost:{{ card.cost }}<br>
                 {{ card.name }} (Lv.{{ card.level }})<br>
                 Atk: {{ card.modifiedAtk }}
                 <span v-if="card.atk !== card.modifiedAtk">({{card.atk}}{{(card.modifiedAtk - card.atk >= 0) ? '+' : '' }}{{card.modifiedAtk - card.atk}})</span>
@@ -74,6 +73,7 @@ export const PlayerComponent = Vue.extend({
                 Def: {{ card.modifiedDef }}
                 <span v-if="card.def !== card.modifiedDef">({{card.def}}{{(card.modifiedDef - card.def >= 0) ? '+' : '' }}{{card.modifiedDef - card.def}})</span>
                 <br>
+                <small>{{ card.id }}</small> | Cost:{{ card.cost }}<br>
                 <!-- <label v-if="card.tap" class="label">Tap !</label> -->
                 <button v-if="player.playing && !card.tap && card.modifiedAtk > 0" v-on:click="attackCard(card.id)" class="button is-info">Attack</button>
             </span>
