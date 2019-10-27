@@ -1,6 +1,6 @@
 # Card game
 
-Simple card game design mostly for AI testing and ML experimentation (not designed to be real card game).
+Simple card game design mostly for AI testing and ML experimentation (not designed to be a real card game).
 
 [Play Here !!!](https://kefniark.github.io/kaaya-cardgame/dist/)
 
@@ -27,6 +27,8 @@ Based on:
     -   **attack** with a card on the board
     -   **end the turn** if there is nothing else to do
 
+#### About cards
+
 Card are dumb simple and have only 4 properties:
 
 -   atk
@@ -34,13 +36,20 @@ Card are dumb simple and have only 4 properties:
 -   cost
 -   level (which provides +1/+1 at each levelup)
 
-Main difference with a normal card game
+#### Main difference with a normal card game
 
 -   No card abilities
 -   No event or counter/trap card
 -   No deck building (randomly generated)
 -   No hero with abilities
--   The main strategy is only based on the order or attack
+
+#### Main strategy
+
+-   Based on the order of attack, it's easy to anticipate damage as they are applied in order:
+    -   the first card to attack will attack the first enemy card
+    -   the second card to attack will attack the second enemy card
+    -   ...
+-   It's important to keep cards alive and make them level up
 
 ---
 
