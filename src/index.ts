@@ -14,6 +14,7 @@ gameStore.register("Player", (store, data) => new Player(store, data))
 const gameId = genId()
 const playerIds = [genId(), genId()]
 
+gameStore.transactionStart()
 gameStore.create("Game", { id: gameId, playerIds })
 var playerNum = 1
 for (var playerId of playerIds) {
@@ -35,22 +36,16 @@ for (var playerId of playerIds) {
 	var player = gameStore.getEntity<Player>(playerId)
 	player.deckIds = deck
 }
+gameStore.transactionEnd("init")
 
 var game = gameStore.getEntity<Game>(gameId)
-game.init()
 
-var player1Store = Kaaya.createEntityStore()
-player1Store.register("Card", (store, data) => new Card(store, data))
-player1Store.register("Game", (store, data) => new Game(store, data))
-player1Store.register("Player", (store, data) => new Player(store, data))
+var viewStore = Kaaya.createEntityStore()
+viewStore.register("Card", (store, data) => new Card(store, data))
+viewStore.register("Game", (store, data) => new Game(store, data))
+viewStore.register("Player", (store, data) => new Player(store, data))
 
-var player2Store = Kaaya.createEntityStore()
-player2Store.register("Card", (store, data) => new Card(store, data))
-player2Store.register("Game", (store, data) => new Game(store, data))
-player2Store.register("Player", (store, data) => new Player(store, data))
-
-player1Store.sync(gameStore.history)
-player2Store.sync(gameStore.history)
+viewStore.sync(gameStore.history)
 
 new Vue({
 	el: "#app",
@@ -60,23 +55,23 @@ new Vue({
 	data() {
 		return {
 			attack: null,
-			game: player1Store.getEntity<Game>(gameId).getJSON(),
-			player1: player1Store.getEntity<Player>(playerIds[0]).getJSON(),
-			player2: player2Store.getEntity<Player>(playerIds[1]).getJSON()
+			waitCallback: undefined as { (): void } | undefined,
+			game: viewStore.getEntity<Game>(gameId).getJSON(),
+			player1: viewStore.getEntity<Player>(playerIds[0]).getJSON(),
+			player2: viewStore.getEntity<Player>(playerIds[1]).getJSON()
 		}
 	},
 	methods: {
 		getModalClass() {
 			return `modal ${this.attack ? "is-active" : ""}`
 		},
-		closeModal() {
-			this.attack = null
+		next() {
+			if (!this.waitCallback) return
+			this.waitCallback()
+			this.waitCallback = undefined
 		},
-		store1() {
-			return player1Store
-		},
-		store2() {
-			return player2Store
+		store() {
+			return viewStore
 		},
 		servPlayer1() {
 			return gameStore.getEntity<Player>(playerIds[0])
@@ -85,15 +80,15 @@ new Vue({
 			return gameStore.getEntity<Player>(playerIds[1])
 		},
 		proxyPlayer1() {
-			return player1Store.getEntity<Player>(playerIds[0])
+			return viewStore.getEntity<Player>(playerIds[0])
 		},
 		proxyPlayer2() {
-			return player2Store.getEntity<Player>(playerIds[1])
+			return viewStore.getEntity<Player>(playerIds[1])
 		},
 		refreshPlayers() {
-			this.game = player1Store.getEntity<Game>(gameId).getJSON()
-			this.player1 = player1Store.getEntity<Player>(this.player1.id).getJSON()
-			this.player2 = player2Store.getEntity<Player>(this.player2.id).getJSON()
+			this.game = viewStore.getEntity<Game>(gameId).getJSON()
+			this.player1 = viewStore.getEntity<Player>(this.player1.id).getJSON()
+			this.player2 = viewStore.getEntity<Player>(this.player2.id).getJSON()
 			// console.log(this.player1, this.player2)
 		}
 	},
@@ -107,32 +102,43 @@ new Vue({
 				</div>
 				<div class="message-body">
 					<p>
-						<b>{{store1().getEntity(attack.attacker).data.name}}</b> ({{ attack.attacker }})
+						<b>{{store().getEntity(attack.attacker).data.name}}</b> ({{ attack.attacker }})
 						=>
-						<b>{{store2().getEntity(attack.defender).data.name}}</b> ({{ attack.defender }})
+						<b>{{store().getEntity(attack.defender).data.name}}</b> ({{ attack.defender }})
 					</p>
 					<br>
 					<p>
 						<h3>Card Attack:</h3>
 						<ul type="1">
 							<li v-for="cardId of attack.atk" v-bind:key="cardId" style="margin-left: 25px;">
-								<b>{{ store1().getEntity(cardId).data.name }}</b> : {{ store1().getEntity(cardId).modifiedAtk }}/{{ store1().getEntity(cardId).modifiedDef }} {{ store1().getEntity(cardId).modifiedDef <= 0 ? '-> Dead' : '' }}
+								<b>{{ store().getEntity(cardId).data.name }}</b> : {{ store().getEntity(cardId).modifiedAtk }}/{{ store().getEntity(cardId).modifiedDef }}
+								<b v-if="attack.damages[cardId]">-> received {{ Math.abs(attack.damages[cardId]) }} dmg {{ (store().getEntity(cardId).modifiedDef + attack.damages[cardId] <= 0) ? '=> DEAD !' : '' }}</b>
+								<b v-if="attack.levelup[cardId]">-> Level UP !!!</b>
 							</li>
 						</ul>
 					</p>
-					<br>
-					<p>
+					<div v-if="this.attack.def && this.attack.def.length > 0">
+						<br>
 						<h3>Card Defend:</h3>
 						<ul type="1">
 							<li v-for="cardId of attack.def" v-bind:key="cardId" style="margin-left: 25px;">
-								<b>{{ store1().getEntity(cardId).data.name }}</b> : {{ store1().getEntity(cardId).modifiedAtk }}/{{ store1().getEntity(cardId).modifiedDef }}  {{ store1().getEntity(cardId).modifiedDef <= 0 ? '-> Dead' : '' }}
+								<b>{{ store().getEntity(cardId).data.name }}</b> : {{ store().getEntity(cardId).modifiedAtk }}/{{ store().getEntity(cardId).modifiedDef }}
+								<b v-if="attack.damages[cardId]">-> received {{ Math.abs(attack.damages[cardId]) }} dmg {{ (store().getEntity(cardId).modifiedDef + attack.damages[cardId] <= 0) ? '=> DEAD !' : '' }}</b>
+								<b v-if="attack.levelup[cardId]">-> Level UP !!!</b>
 							</li>
 						</ul>
+					</div>
+					<div v-if="this.attack.hp > 0">
+						<br>
+						<h3>Defender loss <b>{{attack.hp}}</b> HP !</h3>
+					</div>
+					<p style="text-align: center; margin-top: 25px">
+						<button class="button is-link" aria-label="close" v-on:click="next()">Close</button>
 					</p>
 				</div>
 				</article>
 			</div>
-			<button class="modal-close is-large" aria-label="close" v-on:click="closeModal()"></button>
+			<button class="modal-close is-large" aria-label="close" v-on:click="next()"></button>
 		</div>
 
 		<div>
@@ -145,13 +151,23 @@ new Vue({
 
 	</div>`,
 	mounted() {
-		gameStore.observe(mut => {
-			if (mut.name === "transaction" && mut.data.meta.id === "attack") {
+		viewStore.addHookBefore("transaction", "attack", (_obj, mut) => {
+			return new Promise(resolve => {
+				console.log("Start waiting attack !", mut.id, mut.name, mut.path, mut.data)
 				this.attack = mut.data.meta
-			}
-			player1Store.sync(gameStore.history)
-			player2Store.sync(gameStore.history)
-			this.refreshPlayers()
+				this.waitCallback = () => {
+					console.log("Stop waiting attack !", mut.id, mut.name, mut.path, mut.data)
+					this.attack = null
+					resolve()
+				}
+			})
 		})
+
+		gameStore.observe(mut => {
+			if (mut.name !== "transaction") return
+			viewStore.syncAsync(gameStore.history).then(() => this.refreshPlayers())
+		})
+
+		game.start()
 	}
 })

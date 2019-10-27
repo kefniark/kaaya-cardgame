@@ -180,6 +180,7 @@ export class Player {
 		var pos = this.watchedData.handCardIds.indexOf(cardId)
 		if (pos === -1) throw new Error("Cant find this card in your hand")
 
+		this.store.transactionStart()
 		this.mana -= card.cost
 		this.watchedData.handCardIds.splice(pos, 1)
 		this.watchedData.boardCardIds.push(cardId)
@@ -188,6 +189,7 @@ export class Player {
 			var card = this.game.getCardEntity(cardId)
 			card.visibility = "public"
 		}
+		this.store.transactionEnd("placeCard", { cardId })
 	}
 
 	public attack(cardId: string, valid: boolean = true) {
@@ -195,9 +197,10 @@ export class Player {
 		var card = this.game.getCardEntity(cardId)
 		if (valid && card.player !== this.id) throw new Error(`Not your card ${card.player} / ${this.id}`)
 		if (card.tap) throw new Error(`Already tapped`)
-
+		this.store.transactionStart()
 		card.tap = true
 		this.watchedData.attackCardIds.push(card.id)
+		this.store.transactionEnd("prepareAtk", { cardId: card.id })
 	}
 
 	public killCard(cardId: string) {
@@ -212,6 +215,7 @@ export class Player {
 	public skill() {
 		if (this.game.turnPlayerId !== this.id) throw new Error("Not your turn")
 		if (this.watchedData.xp < 10) return
+		this.store.transactionStart()
 		this.getXP(-10)
 		if (this.hp < 6) {
 			for (var card of this.enemy.boardCards) {
@@ -223,6 +227,7 @@ export class Player {
 				card.addModifier("def", 1 - card.modifiedDef, "skill")
 			}
 		}
+		this.store.transactionEnd("useSkill", {})
 	}
 
 	public endTurn() {
@@ -235,29 +240,51 @@ export class Player {
 				atk: this.data.attackCardIds,
 				def: defendIds
 			})
+
+			const levelup: { [id: string]: number } = {}
+			const damages: { [id: string]: number } = {}
+			let hp = 0
 			for (var i = 0; i < this.data.attackCardIds.length; i++) {
 				var cardAtk = this.game.getCardEntity(this.data.attackCardIds[i])
 				if (!defendIds[i]) {
 					this.enemy.hp -= cardAtk.modifiedAtk
+					hp += cardAtk.modifiedAtk
 					this.enemy.getXP(cardAtk.modifiedAtk)
-					if (cardAtk.level < 2) cardAtk.level += 1
+					if (cardAtk.level < 2) {
+						levelup[cardAtk.id] = 1
+						cardAtk.level += 1
+					}
 				} else {
 					var cardDef = this.game.getCardEntity(defendIds[i])
 					cardDef.addModifier("def", -cardAtk.modifiedAtk, "damage")
 					cardAtk.addModifier("def", -cardDef.modifiedAtk, "damage")
-					if (cardDef.modifiedDef <= 0 && cardAtk.modifiedDef > 0) cardAtk.level += 1
-					if (cardAtk.modifiedDef <= 0 && cardDef.modifiedDef > 0) cardDef.level += 1
+					damages[cardDef.id] = -cardAtk.modifiedAtk
+					damages[cardAtk.id] = -cardDef.modifiedAtk
+					if (cardDef.modifiedDef <= 0 && cardAtk.modifiedDef > 0) {
+						cardAtk.level += 1
+						levelup[cardAtk.id] = 1
+					}
+					if (cardAtk.modifiedDef <= 0 && cardDef.modifiedDef > 0) {
+						cardDef.level += 1
+						levelup[cardDef.id] = 1
+					}
 				}
 			}
 
 			for (var player of [this, this.enemy]) {
 				for (var card of player.boardCards) {
 					if (card.modifiedDef <= 0) {
+						delete levelup[card.id]
 						player.killCard(card.id)
 					}
 				}
 			}
-			this.store.transactionEnd()
+
+			this.store.transactionEnd("attack", {
+				damages,
+				levelup,
+				hp
+			})
 		}
 		this.game.nextTurn()
 	}

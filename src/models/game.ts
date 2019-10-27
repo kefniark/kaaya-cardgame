@@ -61,13 +61,15 @@ export class Game {
 		this.data = Object.assign({}, this.dataDefault, data)
 	}
 
-	public init() {
+	public start() {
+		this.store.transactionStart()
 		for (var player of this.players) {
 			player.init()
 		}
 		this.players[0].status = 1
 		this.players[0].reset()
 		this.watchedData.status = GameStatus.Playing
+		this.store.transactionEnd("gameStart")
 	}
 
 	public finish() {
@@ -94,6 +96,7 @@ export class Game {
 			this.finish()
 			return
 		}
+		this.store.transactionStart()
 		if (this.watchedData.turn.player === 0) {
 			this.watchedData.turn.player = 1
 		} else {
@@ -103,10 +106,13 @@ export class Game {
 		this.players[0].status = this.watchedData.turn.player === 0 ? 1 : 0
 		this.players[1].status = this.watchedData.turn.player === 1 ? 1 : 0
 		this.players[this.watchedData.turn.player].reset()
+		this.store.transactionEnd("endTurn")
+		this.store.transactionStart()
 		this.players[this.watchedData.turn.player].draw()
 		if (this.data.turn.round >= 6) {
 			this.players[this.watchedData.turn.player].draw()
 		}
+		this.store.transactionEnd("turnDraw")
 	}
 
 	public getCardEntity(id: string): Card {

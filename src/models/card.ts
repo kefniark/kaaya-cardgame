@@ -97,12 +97,6 @@ export class Card {
 	public addModifier(key: string, value: number, type: string) {
 		const modifier = { key, value, type }
 		this.watchedData.modifiers.push(modifier)
-		// console.log(
-		// 	"addModifier",
-		// 	this.id,
-		// 	modifier,
-		// 	`Atk: ${this.atk}->${this.modifiedAtk}, Def: ${this.def}->${this.modifiedDef}`
-		// )
 	}
 	public getModifiers(key: string): number {
 		return this.data.modifiers.filter(x => x.key === key).reduce((a, b) => a + b.value, 0)
