@@ -34,7 +34,7 @@ Card are dumb simple and have only 4 properties:
 -   cost
 -   level (which provides +1/+1 at each levelup)
 
-Main difference with a normal card games
+Main difference with a normal card game
 
 -   No card abilities
 -   No event or counter/trap card
