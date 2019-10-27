@@ -2,7 +2,7 @@
 
 Simple card game design mostly for AI testing and ML experimentation (not designed to be real card game).
 
-[Play Here !!!]()
+[Play Here !!!](https://kefniark.github.io/kaaya-cardgame/dist/)
 
 Based on:
 
