@@ -37,6 +37,7 @@ Card are dumb simple and have only 4 properties:
 Main difference with a normal card games
 
 -   No card abilities
+-   No event or counter/trap card
 -   No deck building (randomly generated)
 -   No hero with abilities
 -   The main strategy is only based on the order or attack
