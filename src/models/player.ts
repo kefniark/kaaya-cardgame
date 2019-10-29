@@ -1,8 +1,8 @@
 import { EntityStore } from "kaaya"
-import nanoid = require("nanoid/non-secure")
+import { uid } from "coopa"
 import { Game } from "./game"
 
-export enum PlayerStatus {
+export const enum PlayerStatus {
 	waiting = 0,
 	playing = 1,
 	winning = 2,
@@ -117,7 +117,7 @@ export class Player {
 	private store: EntityStore
 
 	dataDefault: IPlayerData = {
-		id: nanoid(),
+		id: uid(),
 		gameId: "",
 		name: "",
 		mana: 0,

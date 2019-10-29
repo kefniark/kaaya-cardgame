@@ -1,9 +1,9 @@
 import { EntityStore } from "kaaya"
-import nanoid = require("nanoid/non-secure")
 import { ICardData, cardDataDefault, Card } from "./card"
 import { Player, PlayerStatus } from "./player"
+import { uid } from "coopa"
 
-export enum GameStatus {
+export const enum GameStatus {
 	Init = 0,
 	Playing = 1,
 	Finished = 2
@@ -47,7 +47,7 @@ export class Game {
 	private store: EntityStore
 
 	dataDefault: IGameData = {
-		id: nanoid(),
+		id: uid(),
 		status: 0,
 		playerIds: [],
 		turn: {

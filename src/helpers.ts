@@ -1,4 +1,4 @@
-import nanoid = require("nanoid/non-secure")
+import { uid } from "coopa"
 
 export function shuffle(a: string[]) {
 	for (let i = a.length - 1; i > 0; i--) {
@@ -8,4 +8,4 @@ export function shuffle(a: string[]) {
 	return a
 }
 
-export const genId = () => nanoid(6)
+export const genId = () => uid(6)
