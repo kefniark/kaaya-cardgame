@@ -28,8 +28,8 @@
 		"webpack-dev-server": "^3.9.0"
 	},
 	"dependencies": {
-		"coopa": "^0.1.1",
-		"kaaya": "0.0.6",
-		"vue": "^2.6.10"
+		"coopa": "file:../coopa",
+		"kaaya": "file:../kaaya",
+		"jil": "file:../jil"
 	}
 }
